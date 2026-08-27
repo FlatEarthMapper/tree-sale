@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2027 Tree Sale — Vote for Your Favorite</title>
+<style>
+  :root {
+    --bg: #f4f1e8;
+    --card: #ffffff;
+    --ink: #2d3a2e;
+    --moss: #6b8e5a;
+    --moss-dark: #4a6b3d;
+    --bark: #8a6d4f;
+    --gold: #d4a537;
+    --shadow: rgba(45, 58, 46, 0.15);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+    padding: 24px 16px 64px;
+  }
+  header { text-align: center; max-width: 900px; margin: 0 auto 8px; }
+  header h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); color: var(--moss-dark); letter-spacing: -0.5px; }
+  header p { color: var(--bark); margin-top: 6px; font-size: 1.05rem; }
+
+  .tabs { display: flex; justify-content: center; gap: 8px; margin: 24px auto; max-width: 400px; }
+  .tab {
+    flex: 1; padding: 10px 16px; border: 2px solid var(--moss); background: transparent;
+    color: var(--moss-dark); font-size: 1rem; font-weight: 600; border-radius: 999px;
+    cursor: pointer; transition: all 0.2s ease;
+  }
+  .tab.active { background: var(--moss); color: #fff; }
+  .tab:hover:not(.active) { background: rgba(107, 142, 90, 0.12); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 22px; max-width: 1000px; margin: 0 auto; }
+  .card {
+    background: var(--card); border-radius: 16px; overflow: hidden;
+    box-shadow: 0 4px 14px var(--shadow); transition: transform 0.22s ease, box-shadow 0.22s ease;
+    display: flex; flex-direction: column;
+  }
+  .card:hover { transform: translateY(-6px) scale(1.02); box-shadow: 0 12px 28px var(--shadow); }
+  .card img { width: 100%; height: 170px; object-fit: cover; background: #e8e4d8; }
+  .card-body { padding: 16px; display: flex; flex-direction: column; flex: 1; }
+  .card-body h3 { font-size: 1.25rem; color: var(--moss-dark); }
+  .card-body .latin { font-style: italic; color: var(--bark); font-size: 0.85rem; margin-bottom: 8px; }
+  .card-body p { font-size: 0.92rem; flex: 1; margin-bottom: 14px; }
+  .vote-btn {
+    padding: 10px; border: none; background: var(--moss); color: #fff; font-size: 1rem;
+    font-weight: 600; border-radius: 10px; cursor: pointer; transition: background 0.2s ease;
+  }
+  .vote-btn:hover { background: var(--moss-dark); }
+  .vote-btn:disabled { background: var(--gold); cursor: default; }
+
+  .board { max-width: 720px; margin: 0 auto; }
+  .row {
+    display: flex; align-items: center; gap: 14px; background: var(--card);
+    padding: 14px 18px; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 3px 10px var(--shadow);
+  }
+  .rank { font-size: 1.4rem; font-weight: 700; color: var(--bark); width: 32px; text-align: center; }
+  .row:nth-child(1) .rank { color: var(--gold); }
+  .row-thumb { width: 54px; height: 54px; border-radius: 10px; object-fit: cover; background: #e8e4d8; }
+  .row-main { flex: 1; }
+  .row-main .name { font-weight: 600; color: var(--moss-dark); }
+  .bar-track { background: #e8e4d8; height: 10px; border-radius: 999px; margin-top: 6px; overflow: hidden; }
+  .bar-fill { background: var(--moss); height: 100%; border-radius: 999px; transition: width 0.5s ease; }
+  .count { font-weight: 700; color: var(--moss-dark); min-width: 60px; text-align: right; }
+
+  .hidden { display: none; }
+  .note { text-align: center; color: var(--bark); font-size: 0.9rem; margin-top: 28px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>🌳 Pick a Plant for the 2027 Tree Sale</h1>
+    <p>Tap your favorite. One vote per person.</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" id="tab-vote" onclick="showView('vote')">Vote</button>
+    <button class="tab" id="tab-board" onclick="showView('board')">Leaderboard</button>
+  </div>
+
+  <div id="view-vote"><div class="grid" id="grid"></div></div>
+  <div id="view-board" class="hidden"><div class="board" id="board"></div></div>
+
+  <p class="note">One vote per browser. Results update live.</p>
+
+<script>
+  // ═══════════════════════════════════════════════════════════
+  //  EDIT YOUR TREES HERE — add/remove entries, swap image URLs
+  //  and text. The "id" must be unique and must NOT be changed
+  //  once voting starts (votes are tracked by id).
+  // ═══════════════════════════════════════════════════════════
+  const TREES = [
+    { id: "redmaple",     name: "Red Maple",    latin: "Acer rubrum",   img: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600", desc: "Brilliant scarlet fall color and fast growth. A Wisconsin favorite that thrives in a range of soils." },
+    { id: "whiteoak",     name: "White Oak",    latin: "Quercus alba",  img: "https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=600", desc: "Long-lived, majestic shade tree. Acorns feed wildlife and the timber is prized for its strength." },
+    { id: "riverbirch",   name: "River Birch",  latin: "Betula nigra",  img: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=600", desc: "Striking peeling cinnamon bark and tolerance for wet sites. Great for problem drainage areas." },
+    { id: "serviceberry", name: "Serviceberry", latin: "Amelanchier",   img: "https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=600", desc: "Spring white blooms, edible summer berries, and orange fall foliage. A four-season pollinator magnet." }
+  ];
+  // ═══════════════════════════════════════════════════════════
+
+  const VOTED_KEY = "tree-sale-2027-voted";
+  let hasVoted = false;
+  try { hasVoted = !!localStorage.getItem(VOTED_KEY); } catch (e) {}
+
+  async function fetchVotes() {
+    try {
+      const r = await fetch("/api/votes");
+      if (!r.ok) throw new Error("bad status");
+      return await r.json();
+    } catch (e) {
+      return {};
+    }
+  }
+
+  async function castVote(id) {
+    if (hasVoted) return;
+    hasVoted = true;
+    try { localStorage.setItem(VOTED_KEY, id); } catch (e) {}
+    try {
+      const r = await fetch("/api/vote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id })
+      });
+      const votes = r.ok ? await r.json() : await fetchVotes();
+      render(votes);
+    } catch (e) {
+      render(await fetchVotes());
+    }
+  }
+
+  function render(votes) {
+    // cards
+    const grid = document.getElementById("grid");
+    grid.innerHTML = "";
+    TREES.forEach(t => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <img src="${t.img}" alt="${t.name}" onerror="this.style.background='#d9d4c4'">
+        <div class="card-body">
+          <h3>${t.name}</h3>
+          <div class="latin">${t.latin || ""}</div>
+          <p>${t.desc || ""}</p>
+          <button class="vote-btn" ${hasVoted ? "disabled" : ""}>
+            ${hasVoted ? "✓ Vote counted" : "Vote for this tree"}
+          </button>
+        </div>`;
+      const btn = card.querySelector("button");
+      if (!hasVoted) btn.addEventListener("click", () => castVote(t.id));
+      grid.appendChild(card);
+    });
+
+    // leaderboard
+    const board = document.getElementById("board");
+    const ranked = TREES.map(t => ({ ...t, count: votes[t.id] || 0 })).sort((a, b) => b.count - a.count);
+    const max = Math.max(1, ...ranked.map(r => r.count));
+    const total = ranked.reduce((s, r) => s + r.count, 0);
+    board.innerHTML = ranked.map((t, i) => `
+      <div class="row">
+        <div class="rank">${i + 1}</div>
+        <img class="row-thumb" src="${t.img}" alt="" onerror="this.style.background='#d9d4c4'">
+        <div class="row-main">
+          <div class="name">${t.name}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${(t.count / max) * 100}%"></div></div>
+        </div>
+        <div class="count">${t.count} vote${t.count === 1 ? "" : "s"}</div>
+      </div>`).join("") + `<p class="note">${total} total vote${total === 1 ? "" : "s"} so far</p>`;
+  }
+
+  function showView(v) {
+    document.getElementById("view-vote").classList.toggle("hidden", v !== "vote");
+    document.getElementById("view-board").classList.toggle("hidden", v !== "board");
+    document.getElementById("tab-vote").classList.toggle("active", v === "vote");
+    document.getElementById("tab-board").classList.toggle("active", v === "board");
+  }
+
+  (async function init() {
+    render(await fetchVotes());
+    // light live refresh of the leaderboard every 15s
+    setInterval(async () => render(await fetchVotes()), 15000);
+  })();
+</script>
+</body>
+</html>
