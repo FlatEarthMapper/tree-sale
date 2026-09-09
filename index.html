@@ -109,6 +109,17 @@
   .hidden { display: none; }
   .note { text-align: center; color: var(--on-bg); font-size: 0.9rem; margin-top: 28px; }
 
+  #winner-banner {
+    max-width: 720px; margin: 8px auto 20px; padding: 20px 24px; border-radius: 16px;
+    background: linear-gradient(135deg, #f6d46b 0%, #d4a537 100%);
+    color: #4a3708; text-align: center; box-shadow: 0 6px 18px var(--shadow);
+    border: 2px solid rgba(255,255,255,0.5);
+  }
+  #winner-banner .wb-label { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.8; }
+  #winner-banner .wb-name { font-size: 1.9rem; font-weight: 800; line-height: 1.1; margin: 4px 0; }
+  #winner-banner .wb-latin { font-style: italic; font-size: 1rem; opacity: 0.85; }
+  #winner-banner .wb-votes { font-size: 0.95rem; font-weight: 600; margin-top: 6px; }
+
   /* ─── Modal / detail view ─────────────────────────────── */
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(20, 28, 16, 0.72);
@@ -164,12 +175,19 @@
 </head>
 <body>
   <header>
-    <h1>Pick Your Favorite Species for 2027!</h1>
-    <p class="intro">We're trying something new! Each year we want to rotate in a new species for the following year's Tree Sale. If the species sells well, we might keep it in stock permanently!<br> Vote for the species you want to see in Spring 2027.</p>
-    <p class="intro"><strong>Tap your favorite! One vote per person.</strong></p>
+    <h1 id="page-title">Pick Your Favorite Species for 2027!</h1>
+    <div id="intro-open">
+      <p class="intro">We're trying something new! Each year we want to rotate in a new species for the following year's Tree Sale. If the species sells well, we might keep it in stock permanently!<br> Vote for the species you want to see in Spring 2027.</p>
+      <p class="intro"><strong>Tap your favorite! One vote per person.</strong></p>
+    </div>
+    <div id="intro-closed" class="hidden">
+      <p class="intro">Voting has closed &mdash; thank you to everyone who participated!<br>Here are the final results.</p>
+    </div>
   </header>
 
-  <div class="tabs">
+  <div id="winner-banner" class="hidden"></div>
+
+  <div class="tabs" id="tabs">
     <button class="tab active" id="tab-vote" onclick="showView('vote')">Vote</button>
     <button class="tab" id="tab-board" onclick="showView('board')">Leaderboard</button>
   </div>
@@ -177,7 +195,7 @@
   <div id="view-vote"><div class="grid" id="grid"></div></div>
   <div id="view-board" class="hidden"><div class="board" id="board"></div></div>
 
-  <p class="note">One vote per browser. Results update live.</p>
+  <p class="note" id="footer-note">One vote per browser. Results update live.</p>
 
   <!-- Detail modal -->
   <div class="modal-overlay" id="modal-overlay">
@@ -238,6 +256,15 @@
   ];
   // ═══════════════════════════════════════════════════════════
 
+  // ┌─────────────────────────────────────────────────────────┐
+  // │  VOTING SWITCH — flip this each year.                    │
+  // │    true  = voting is OPEN (cards + Vote tab shown)       │
+  // │    false = voting is CLOSED (results only, winner shown) │
+  // │  IMPORTANT: also set the SAME value in                   │
+  // │  functions/api/vote.js so the server enforces it.        │
+  // └─────────────────────────────────────────────────────────┘
+  const VOTING_OPEN = true;
+
   const VOTED_KEY = "tree-sale-2027-voted";
   let hasVoted = false;
   try { hasVoted = !!localStorage.getItem(VOTED_KEY); } catch (e) {}
@@ -254,7 +281,7 @@
   }
 
   async function castVote(id) {
-    if (hasVoted) return;
+    if (!VOTING_OPEN || hasVoted) return;
     hasVoted = true;
     try { localStorage.setItem(VOTED_KEY, id); } catch (e) {}
     try {
@@ -338,7 +365,21 @@
         </div>
         <div class="count">${t.count} vote${t.count === 1 ? "" : "s"}</div>
       </div>`;
-    }).join("") + `<p class="note">${total} total vote${total === 1 ? "" : "s"} so far</p>`;
+    }).join("") + `<p class="note">${total} total vote${total === 1 ? "" : "s"}${VOTING_OPEN ? " so far" : ""}</p>`;
+
+    if (!VOTING_OPEN) updateWinnerBanner(ranked, total);
+  }
+
+  function updateWinnerBanner(ranked, total) {
+    const banner = document.getElementById("winner-banner");
+    const winner = ranked[0];
+    if (!winner || total === 0) { banner.classList.add("hidden"); return; }
+    banner.innerHTML = `
+      <div class="wb-label">🏆 Winning Species</div>
+      <div class="wb-name">${winner.name}</div>
+      <div class="wb-latin">${winner.latin || ""}</div>
+      <div class="wb-votes">${winner.count} vote${winner.count === 1 ? "" : "s"} of ${total} cast</div>`;
+    banner.classList.remove("hidden");
   }
 
   // ─── Modal ───────────────────────────────────────────────
@@ -370,10 +411,10 @@
         ${statsBlock}
         <p class="long">${longText}</p>
         <div class="modal-actions">
-          <button class="modal-back" onclick="closeModal()">Back</button>
-          <button class="modal-vote" ${voted ? "disabled" : ""} onclick="castVote('${t.id}')">
+          <button class="modal-back" onclick="closeModal()">${VOTING_OPEN ? "Back" : "Close"}</button>
+          ${VOTING_OPEN ? `<button class="modal-vote" ${voted ? "disabled" : ""} onclick="castVote('${t.id}')">
             ${voted ? "✓ Vote counted" : "Vote for This Species"}
-          </button>
+          </button>` : ""}
         </div>
       </div>`;
     document.getElementById("modal-overlay").classList.add("open");
@@ -405,9 +446,24 @@
     document.getElementById("tab-board").classList.toggle("active", v === "board");
   }
 
+  function applyVotingMode() {
+    if (VOTING_OPEN) return;
+    // Closed: hide voting UI, show results only
+    document.getElementById("tabs").classList.add("hidden");
+    document.getElementById("intro-open").classList.add("hidden");
+    document.getElementById("intro-closed").classList.remove("hidden");
+    document.getElementById("page-title").textContent = "Final Results";
+    document.getElementById("footer-note").textContent = "Voting is closed. Thank you for participating!";
+    showView("board");
+  }
+
   (async function init() {
+    applyVotingMode();
     render(await fetchVotes());
-    setInterval(async () => { if (!document.getElementById("modal-overlay").classList.contains("open")) render(await fetchVotes()); }, 15000);
+    // Auto-refresh only while voting is open
+    if (VOTING_OPEN) {
+      setInterval(async () => { if (!document.getElementById("modal-overlay").classList.contains("open")) render(await fetchVotes()); }, 15000);
+    }
   })();
 </script>
 </body>
