@@ -375,7 +375,7 @@
     const winner = ranked[0];
     if (!winner || total === 0) { banner.classList.add("hidden"); return; }
     banner.innerHTML = `
-      <div class="wb-label">🏆 Winning Species</div>
+      <div class="wb-label">🏆 2027 Winning Species</div>
       <div class="wb-name">${winner.name}</div>
       <div class="wb-latin">${winner.latin || ""}</div>
       <div class="wb-votes">${winner.count} vote${winner.count === 1 ? "" : "s"} of ${total} cast</div>`;
