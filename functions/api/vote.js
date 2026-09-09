@@ -10,7 +10,7 @@
 // │  This server-side check is what makes "closed" tamper-     │
 // │  proof: even a direct API call cannot add votes when false.│
 // └───────────────────────────────────────────────────────────┘
-const VOTING_OPEN = true;
+const VOTING_OPEN = false;
 
 export async function onRequestPost(context) {
   const { request, env } = context;
