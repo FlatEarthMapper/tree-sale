@@ -2,8 +2,23 @@
 // Stores ALL counts in a single KV key ("tally") as one JSON object.
 // This means one write per vote regardless of how many trees there are,
 // which keeps you comfortably under the free-tier write limit.
+
+// ┌───────────────────────────────────────────────────────────┐
+// │  VOTING SWITCH — must match VOTING_OPEN in index.html.     │
+// │    true  = accept votes                                    │
+// │    false = reject all votes (voting closed)                │
+// │  This server-side check is what makes "closed" tamper-     │
+// │  proof: even a direct API call cannot add votes when false.│
+// └───────────────────────────────────────────────────────────┘
+const VOTING_OPEN = true;
+
 export async function onRequestPost(context) {
   const { request, env } = context;
+
+  if (!VOTING_OPEN) {
+    return Response.json({ error: "voting is closed" }, { status: 403 });
+  }
+
   try {
     const { id } = await request.json();
     if (!id || typeof id !== "string") {
